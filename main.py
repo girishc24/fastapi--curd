@@ -32,8 +32,8 @@ class ChoiceBase(BaseModel):
      is_correct : bool
 
 class QuestionBase(BaseModel):
-     question_text : str
-     choice: List[ChoiceBase]
+    question_text: str
+    choices: List[ChoiceBase] 
 
 def get_db():
      db =SessionLocal()
@@ -43,6 +43,21 @@ def get_db():
           db.close()
 
 db_dependency = Depends(get_db)
+
+
+@app.get("/questions/{question_id}")
+async def read_questions(question_id: int, db: Session = db_dependency):
+     result =db.query(models.Questions).filter(models.Questions.id == question_id).first()
+     if not result:
+          raise HTTPException(status_code=404, detail='Question is not found')
+     return result
+
+@app.get("/choices/{question_id}")
+async def read_questions(question_id: int, db: Session = db_dependency):
+     result =db.query(models.Questions).filter(models.Choices.id == question_id)
+     if not result:
+          raise HTTPException(status_code=404, detail='Question is not found')
+     return result
 
 @app.post("/questions")
 async def create_questions(questions: QuestionBase, db: Session = db_dependency):
