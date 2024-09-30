@@ -1,9 +1,14 @@
 from typing import Union, List, Optional
-from fastapi import FastAPI, HTTPException 
+from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel, Field
 from uuid import UUID, uuid4
+from database import engine, SessionLocal, Base
+from sqlalchemy.orm import Session
+import models
 
 app = FastAPI()
+
+models.Base.metadata.create_all(bind=engine)
 
 class Book(BaseModel):
      id : UUID
@@ -21,6 +26,45 @@ class Task(BaseModel):
      compeleted : bool = False
 
 TASKS = []
+
+class ChoiceBase(BaseModel):
+     choice_text : str
+     is_correct : bool
+
+class QuestionBase(BaseModel):
+     question_text : str
+     choice: List[ChoiceBase]
+
+def get_db():
+     db =SessionLocal()
+     try:
+          yield db
+     finally:
+          db.close()
+
+db_dependency = Depends(get_db)
+
+@app.post("/questions")
+async def create_questions(questions: QuestionBase, db: Session = db_dependency):
+    db_question = models.Questions(question_text=questions.question_text)
+    db.add(db_question)
+    db.commit()
+    db.refresh(db_question)
+
+    for choice in questions.choices:
+        db_choice = models.Choices(
+            choices_text=choice.choice_text,
+            is_correct=choice.is_correct,
+            question_id=db_question.id
+        )
+        db.add(db_choice)
+
+    db.commit()
+    return {"question_id": db_question.id, "question_text": db_question.question_text}
+
+
+
+
 
 @app.get("/")
 def read_root():
